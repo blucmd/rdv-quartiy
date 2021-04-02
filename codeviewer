@@ -1,0 +1,75 @@
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+using System.Net.Sockets;
+using System.Net;
+using System.Threading;
+using System.Runtime.Serialization.Formatters.Binary;
+
+namespace quartiy
+{
+    public partial class ScreenDesc : Form
+    {
+        private readonly IPAddress ip;
+        private readonly int port;
+        private TcpClient client;
+        private TcpListener server;
+        private NetworkStream stream;
+
+        private readonly Thread Listening;
+        private readonly Thread Getimg;
+
+        public ScreenDesc(IPAddress Ip, int Port)
+        {
+            port = Port;
+            ip = Ip;
+
+            client = new TcpClient();
+            Listening = new Thread(startListening);
+            Getimg = new Thread(receiveImg);
+
+            InitializeComponent();
+        }
+
+        private void startListening()
+        {
+            while (!client.Connected)
+            {
+                server.Start();
+                client = server.AcceptTcpClient();
+            }
+            Getimg.Start();
+        }
+
+        private void stopListening()
+        {
+            server.Stop();
+            client = null;
+            if (Listening.IsAlive) Listening.Abort();
+            if (Getimg.IsAlive) Listening.Abort();
+        }
+
+        private void receiveImg()
+        {
+            BinaryFormatter binaryFormatter = new BinaryFormatter();
+            while(client.Connected)
+            {
+                stream = client.GetStream();
+                picDes.Image = (Image)binaryFormatter.Deserialize(stream);
+            }
+        }
+
+        protected override void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
+            server = new TcpListener(ip, port);
+            Listening.Start();
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            base.OnFormClosing(e);
+            stopListening();
+        }
+    }
+}
