@@ -1,0 +1,112 @@
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+using Microsoft.Win32;
+using System.Net.Sockets;
+using System.Net;
+using System.Threading;
+using System.Drawing.Imaging;
+using System.Runtime.Serialization.Formatters.Binary;
+
+namespace quartiy
+{
+    public partial class Menu : Form
+    {
+        private readonly TcpClient client = new TcpClient();
+        private NetworkStream stream;
+        private int portNum;
+        
+        private static Image grabDes()
+        {
+            Size cvBound = new Size();
+            Rectangle bound = Screen.PrimaryScreen.Bounds;
+
+            cvBound.Width = Convert.ToInt32(Screen.PrimaryScreen.Bounds.Size.Width * 1.25);
+            cvBound.Height = Convert.ToInt32(Screen.PrimaryScreen.Bounds.Size.Height * 1.25);
+
+            Bitmap screen = new Bitmap(cvBound.Width, cvBound.Height, PixelFormat.Format32bppArgb);
+            Graphics graphics = Graphics.FromImage(screen);
+
+            graphics.CopyFromScreen(0, 0, 0, 0, cvBound, CopyPixelOperation.SourceCopy);
+
+            return screen;
+        }
+
+        private void sendDes()
+        {
+            BinaryFormatter binaryFormatter = new BinaryFormatter();
+            stream = client.GetStream();
+            binaryFormatter.Serialize(stream, grabDes());
+        }
+
+        public Menu()
+        {
+            InitializeComponent();
+        }
+
+        private void Menu_Load(object sender, EventArgs e)
+        {
+            RegistryKey rkRun = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
+
+            if (rkRun.GetValue("quartiy") == null) 
+            {
+                //rkRun.SetValue("quartiy", @"C:\Users\EGEMEN\source\repos\quartiy\quartiy\bin\Debug\quartiy.exe", RegistryValueKind.String);
+            }
+
+            textIp.Text = Dns.GetHostByName(Dns.GetHostName()).AddressList[0].ToString();
+            textPort.Text = "666";
+        }
+
+        private void buttonCon_Click(object sender, EventArgs e)
+        {
+            portNum = int.Parse(textPort.Text);
+            try
+            {
+                client.Connect(textIp.Text, portNum);
+                buttonCon.Enabled = false;
+                buttonShare.Enabled = true;
+            }
+            catch(Exception)
+            {
+                return;
+            }
+        }
+
+        private void buttonShare_Click(object sender, EventArgs e)
+        {
+            if (buttonShare.Enabled == true)
+            {
+                Timer.Start();
+            }
+            else
+            {
+                Timer.Stop();
+            }
+        }
+
+        private void Timer_Tick(object sender, EventArgs e)
+        {
+            sendDes();
+        }
+
+        private void buttonLES_Click(object sender, EventArgs e)
+        {
+            new ScreenDesc(IPAddress.Parse(textIp.Text), int.Parse(textPort.Text)).Show();
+            buttonLES.Enabled = false;
+        }
+
+        private void buttonRef_Click(object sender, EventArgs e)
+        {
+            if (textIp.Enabled == true)
+            {
+                textPort.Enabled = false;
+                textIp.Enabled = false;
+            }
+            else
+            {
+                textPort.Enabled = true;
+                textIp.Enabled = true;
+            }
+        }
+    }
+}
